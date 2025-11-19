@@ -1,0 +1,1 @@
+Unzip and run npm install, then npm run dev at project root. Renderer uses Vite.
