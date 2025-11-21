@@ -30,9 +30,16 @@ const form = reactive({
 });
 
 const submitLogin = () => {
-  window.electron.invoke("login-attempt", form).then(res => {
+  window.electronAPI.login({
+    account: form.account,
+    password: form.password,
+    group: form.group
+  }).then(res => {
     if (res.ok) alert("登录成功");
     else alert("登录失败：" + res.message);
+  }).catch(err => {
+
+    alert('登录异常，请查看控制台');
   });
 };
 </script>

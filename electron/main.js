@@ -1,11 +1,12 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu,globalShortcut } = require('electron')
 const path = require('path')
 
 let mainWindow = null
-let childWindow = null
+let frameWindow = null
+let loginWindow = null
 
 // ======================= 创建主窗口 =======================
-function createWindow() {
+function createWindow() {       //一级窗口
     mainWindow = new BrowserWindow({
         width: 1500,
         height: 1200,
@@ -14,9 +15,7 @@ function createWindow() {
             contextIsolation: true
         }
     })
-
     const isDev = !app.isPackaged
-
     // 主窗口加载页面
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173')
@@ -24,71 +23,116 @@ function createWindow() {
         mainWindow.loadFile(path.join(__dirname, '../renderer/dist/index.html'))
     }
 }
+// ======================= 二级窗口（框架窗口） =======================
+function openFrameWindow() {
+    if (frameWindow) {
+        frameWindow.focus()
+        return
+    }
 
-// ======================= 创建子窗口 =======================
-function openChildWindow() {
-    if (childWindow) return childWindow.focus();
-
-    childWindow = new BrowserWindow({
-        width: 420,
-        height: 350,
-        title: "登录",
+    frameWindow = new BrowserWindow({
+        width: 850,
+        height: 600,
+        title: "框架信息",
         parent: mainWindow,
         modal: false,
-        resizable: false,
+        resizable: true,
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             contextIsolation: true
         }
-    });
+    })
+    frameWindow.setMenu(null)
+    const isDev = !app.isPackaged
+    if (isDev)
+        frameWindow.loadURL("http://localhost:5173/#/frame")
+    else
+        frameWindow.loadFile(path.join(__dirname, "../renderer/dist/index.html"), { hash: "frame" })
 
-    const isDev = !app.isPackaged;
+    frameWindow.on("closed", () => frameWindow = null)
+}
 
-    if (isDev) {
-        childWindow.loadURL('http://localhost:5173/#/login');
-    } else {
-        childWindow.loadFile(
-            path.join(__dirname, '../renderer/dist/index.html'),
-            { hash: 'login' }
-        );
+// ======================= 三级窗口（登录窗口） =======================
+function openLoginWindow() {
+    if (loginWindow) {
+        loginWindow.focus()
+        return
     }
+    loginWindow = new BrowserWindow({
+        width: 420,
+        height: 360,
+        title: "登录",
+        parent: frameWindow,   // 三级窗口挂在二级窗口下面
+        modal: false,
+        resizable: true,
+        webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
+            contextIsolation: true
+        }
+    })
+    loginWindow.setMenu(null)
+    const isDev = !app.isPackaged
 
-    childWindow.on("closed", () => (childWindow = null));
+    if (isDev)
+        loginWindow.loadURL("http://localhost:5173/#/login")
+    else
+        loginWindow.loadFile(path.join(__dirname, "../renderer/dist/index.html"), { hash: "login" })
+
+    // 开启 DevTools：你打开这个窗口时在 DevTools 的 Console 能看到 preload 的日志
+        loginWindow.webContents.openDevTools({ mode: 'right' })
+
+    loginWindow.on("closed", () => loginWindow = null)
 }
 
 
 // ======================= App Ready =======================
 app.whenReady().then(() => {
-
     createWindow()
-
+    // ---------------- 注册 F10 隐藏 / 显示 主窗口 ----------------
+    globalShortcut.register('F10', () => {
+        toggleAllWindows()
+    })
     const template = [
         { label: '客户管理' },
         { label: '算账设置' },
         { label: '封盘设置' },
         { label: '回水工具' },
         { label: '关于' },
-
         {
             label: '已连框架',
             click() {
-                openChildWindow()     // ← 正确位置
+                openFrameWindow()     // ← 正确位置
             }
         },
-
         { label: '上下分窗' },
         { label: '查看账号信息' },
-        { label: 'F10隐藏显示窗口' }
+        { label: 'F10隐藏显示窗口',
+            click() {
+                toggleAllWindows()
+            }
+        }
     ]
-
     Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 })
+function toggleAllWindows() {
+    const wins = [mainWindow, frameWindow, loginWindow].filter(w => w && !w.isDestroyed())
+    if (wins.length === 0) return
+    // 判断当前状态 → 如果有任何一个窗口是可见的，就全部隐藏
+    const anyVisible = wins.some(win => win.isVisible())
+    if (anyVisible) {
+        wins.forEach(win => win.hide())
+    } else {
+        // 全部窗口恢复显示
+        wins.forEach(win => win.show())
+    }
+}
 
 // ======================= IPC 通信 =======================
 ipcMain.handle('login-attempt', async (_, payload) => {
     console.log('login-attempt payload:', payload);
 
     if (payload.account === 'admin' && payload.password === '123') {
+
         mainWindow.webContents.send('login-success', {
             uid: payload.account
         });
@@ -107,8 +151,13 @@ ipcMain.handle('manual-draw', async () => {
 
 ipcMain.handle('start-draw', async (_, payload) => ({ ok: true, payload }))
 ipcMain.handle('stop-draw', async () => ({ ok: true }))
-
+ipcMain.on("frame-open-login", () => {
+    openLoginWindow();
+});
 // ======================= 关闭处理 =======================
 app.on('window-all-closed', () => {
     app.quit()
+})
+app.on('will-quit', () => {
+    globalShortcut.unregisterAll()
 })

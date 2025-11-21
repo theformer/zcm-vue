@@ -6,11 +6,13 @@ import 'element-plus/dist/index.css'
 
 // 页面
 import LoginWindow from './components/LoginWindow.vue'
+import FrameWindow from './components/FrameWindow.vue'
 import MainView from './components/MainView.vue'   // ← 新增
 
 const routes = [
     { path: '/', component: MainView },       // ← 改为 MainView
-    { path: '/login', component: LoginWindow }
+    { path: '/login', component: LoginWindow },
+    { path: '/frame', component: FrameWindow }
 ]
 
 const router = createRouter({

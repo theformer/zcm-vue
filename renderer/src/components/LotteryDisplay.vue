@@ -1,9 +1,9 @@
 <template>
   <div style="padding:8px;">
 <!-- 开奖区域   -->
-    <div style="font-size:12px;color:#666">{{round}}</div>
+    <div style="font-size:12px;color:#666">本期{{round}}</div>
     <div style="color: blue">开始开奖</div>
-    <div style="margin:8px 0; display:flex; align-items:center;">
+    <div style="margin:8px 0; display:flex; align-items:center">
       <div style="background:#fff; border:1px solid #e6e6e6; padding:8px;">
         <span class="num">{{nums[0]}}</span>
         <span class="plus">+</span>
@@ -11,15 +11,15 @@
         <span class="plus">+</span>
         <span class="num">{{nums[2]}}</span>
         <span class="plus">=</span>
-        <span class="sum">{{sum}}</span>
+        <span class="sum">{{nums[3]}}</span>
       </div>
     </div>
     <div>
-    <div>下期期号{{}}</div>
+    <div class="next-round">下期期号 {{ nextRound }}</div>
     <div style="margin-top:10px;display: flex;justify-content: space-between;">
       <div class="refresh-box">
         <div class="tip-text">不开奖时点击这里</div>
-        <el-button class="refresh-btn" size="small" @click="$emit('start')">
+        <el-button class="refresh-btn" size="small" @click="$emit('startLottery')">
           刷新开奖
         </el-button>
       </div>
@@ -34,7 +34,14 @@
 <script>
 export default {
   props:{round:String, nums:Array},
-  computed:{ sum(){ return Number(this.nums[0]||0) + Number(this.nums[1]||0) + Number(this.nums[2]||0) } },
+  emits: ['startLottery', 'stop'], // 明确声明发出的事件
+  computed: {
+    nextRound() {
+      // 安全转换，提供默认值
+      const current = parseInt(this.round);
+      return isNaN(current) ? 1 : current + 1;
+    }
+  },
   methods:{
     async manual(){
       const res = (window.electronAPI && window.electronAPI.manualDraw) ? await window.electronAPI.manualDraw() : {a:0,b:0,c:0}

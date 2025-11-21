@@ -30,7 +30,13 @@
       <!-- 左：开奖显示 -->
       <el-col :span="7">
         <el-card style="height: 262px!important;" class="card-section" shadow="never">
-          <lottery-display :round="currentRound" :nums="nums"/>
+          <lottery-display
+              @start-lottery="handleStartLottery"
+              @stop="handleStop"
+              :round="currentRound"
+              :nums="nums"
+              :loading="isLoading"
+          />
         </el-card>
       </el-col>
 
@@ -157,6 +163,13 @@
       <span>今日总盈利：{{ todayProfit }}</span>
       <el-button type="success" size="small" @click="startLottery">开始开奖</el-button>
     </div>
+    <!-- 加载状态提示 -->
+    <div v-if="isLoading" class="loading-mask">
+      <el-icon class="is-loading">
+        <Loading />
+      </el-icon>
+      正在刷新开奖数据...
+    </div>
     <!--    </el-card>-->
   </div>
 </template>
@@ -164,20 +177,23 @@
 <script>
 import LotteryDisplay from "./LotteryDisplay.vue";
 import PlayersTable from "./PlayersTable.vue";
+import { Loading } from '@element-plus/icons-vue'
 import { get, post } from '../api/http.js'
 export default {
-  components: {LotteryDisplay, PlayersTable},
+  components: {LotteryDisplay, PlayersTable,Loading},
 
   data() {
     return {
       topMenu: ["客户管理", "算账管理", "封盘设置", "回水工具", "关于"],
-      currentRound: "本期3359246",
-      nums: [0, 7, 5],
-
+      currentRound: "",
+      nums: [0, 0, 0, 0],
+      updateInterval: null,
+      canFetch: true, // 是否可以发起请求
+      throttleTime: 3000, // 节流时间3秒
       // 搜索
       search: "",
       inputWang: "",
-
+      isLoading: false,
       // 选项
       opts: {
         stopThisRound: false,
@@ -197,7 +213,6 @@ export default {
       players: [],
       profit: 64,
       todayProfit: 3335,
-
       dummy: "10",
     };
   },
@@ -206,28 +221,75 @@ export default {
     totalScore() {
       return this.players.reduce((s, p) => s + (p.score || 0), 0);
     },
-
   },
 
   mounted() {
     this.mockPlayers();
+
     this.handleGetLotteryDisplay();
     // 在 renderer 的任意组件（比如 App.vue）中 mounted：
+    // 启动定时器，每秒更新一次
+    this.updateInterval = setInterval(() => {
+      this.handleGetLotteryDisplay();
+    }, 5000);
   },
-
+  beforeUnmount() {
+    // 组件销毁前清除定时器
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  },
   methods: {
     // 顶部功能空函数
     onMenu(name) {
       console.log("点击菜单：", name)
     },
+    async handleStartLottery() {
+      if (this.isLoading|| !this.canFetch) {
+        this.$message.warning('操作过于频繁，请稍后再试');
+        return;
+      }
+      this.isLoading = true;
+      this.canFetch = false; // 进入节流期
+      try {
+        const res = await post('/api/lottery/fetch', {lotteryType: 'fast-lottery'});
+
+        this.$message.success('开奖信息即将更新，请稍后.');
+      } catch (error) {
+        this.$message.error('刷新开奖失败');
+      } finally {
+        this.isLoading = false;
+        // 3秒后重置节流状态
+        setTimeout(() => {
+          this.canFetch = true;
+        }, this.throttleTime);
+      }
+
+    },
+    parseAndUpdateNumbers(winningStr) {
+      if (!winningStr) return;
+      try {
+        const [equation, result] = winningStr.split('=');
+        const leftNumbers = equation.split('+').map(num => parseInt(num.trim()));
+        const resultNumber = parseInt(result.trim());
+
+        // 直接替换整个数组，保持响应式
+        this.nums = [
+          leftNumbers[0] || 0,
+          leftNumbers[1] || 0,
+          leftNumbers[2] || 0,
+          resultNumber || 0
+        ];
+      } catch (error) {
+      }
+    },
     handleGetLotteryDisplay() {
       // 确保请求参数传递正确
-      get('/api/lottery/latest/fast-lottery')
+      get('/api/lottery/latest',{lotteryType:'fast-lottery'})
           .then(res => {
-            console.log('我是返回的字段:', res)  // 打印返回的数据
-          })
-          .catch(error => {
-            console.error('请求失败:', error)  // 打印失败的错误
+            this.currentRound = res.data.issueNo;
+            this.parseAndUpdateNumbers(res.data.winningNumbers);
           })
     },
 
@@ -262,7 +324,6 @@ export default {
     // 客户框
     openChatLog() {
     },
-
     // 开奖
     startLottery() {
     },
@@ -275,7 +336,10 @@ export default {
       })
       this.$message.info('搜索功能开发中')
     },
-
+    handleStop() {
+      console.log("手动算账");
+      // 手动算账逻辑
+    },
     modifyInfo() {
       console.log('修改信息')
       this.$message.info('修改信息功能开发中')

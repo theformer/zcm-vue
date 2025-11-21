@@ -10,7 +10,6 @@ const instance = axios.create({
 // 请求拦截器
 instance.interceptors.request.use(config => {
     // 可在这里添加请求头或其他配置
-    console.log('请求配置:', config)  // 查看请求配置
     return config
 })
 
