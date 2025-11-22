@@ -22,6 +22,7 @@ function createWindow() {       //一级窗口
     } else {
         mainWindow.loadFile(path.join(__dirname, '../renderer/dist/index.html'))
     }
+    mainWindow.webContents.openDevTools({ mode: 'right' })
 }
 // ======================= 二级窗口（框架窗口） =======================
 function openFrameWindow() {
@@ -78,9 +79,6 @@ function openLoginWindow() {
     else
         loginWindow.loadFile(path.join(__dirname, "../renderer/dist/index.html"), { hash: "login" })
 
-    // 开启 DevTools：你打开这个窗口时在 DevTools 的 Console 能看到 preload 的日志
-        loginWindow.webContents.openDevTools({ mode: 'right' })
-
     loginWindow.on("closed", () => loginWindow = null)
 }
 
@@ -93,8 +91,16 @@ app.whenReady().then(() => {
         toggleAllWindows()
     })
     const template = [
-        { label: '客户管理' },
-        { label: '算账设置' },
+        { label: '客户管理',
+            click() {
+                mainWindow.webContents.send('router-navigate', '/')
+            }
+            },
+        { label: '算账设置',
+            click() {
+                mainWindow.webContents.send('router-navigate', '/setting')
+            }
+        },
         { label: '封盘设置' },
         { label: '回水工具' },
         { label: '关于' },
@@ -148,7 +154,11 @@ ipcMain.handle('manual-draw', async () => {
     const c = Math.floor(Math.random() * 10)
     return { a, b, c }
 })
-
+ipcMain.on('setting-bill', (_, page) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('router-navigate', page)
+    }
+});
 ipcMain.handle('start-draw', async (_, payload) => ({ ok: true, payload }))
 ipcMain.handle('stop-draw', async () => ({ ok: true }))
 ipcMain.on("frame-open-login", () => {

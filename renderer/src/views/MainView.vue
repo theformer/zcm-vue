@@ -1,30 +1,5 @@
 <template>
   <div class="app-container">
-
-    <!--    &lt;!&ndash; 顶部工具栏 &ndash;&gt;-->
-    <!--    <el-card shadow="never" class="card-section">-->
-    <!--      <div class="toolbar" style="width: 100%">-->
-    <!--        <div class="menu-buttons">-->
-    <!--          <el-button-->
-    <!--              v-for="t in topMenu"-->
-    <!--              :key="t"-->
-    <!--              type="primary"-->
-    <!--              size="small"-->
-    <!--              @click="onMenu(t)"-->
-    <!--          >-->
-    <!--            {{ t }}-->
-    <!--          </el-button>-->
-    <!--        </div>-->
-
-    <!--        <div class="toolbar-right">-->
-    <!--          <el-checkbox v-model="opts.enableGroup">已连框架</el-checkbox>-->
-    <!--          <el-checkbox v-model="opts.stopThisRound">上下分窗</el-checkbox>-->
-    <!--          <el-checkbox v-model="opts.supportNickname">查看账号信息</el-checkbox>-->
-    <!--          <div style="display: inline-block;color: red;margin-left: 5px">F10隐藏显示窗口</div>-->
-    <!--        </div>-->
-    <!--      </div>-->
-    <!--    </el-card>-->
-
     <el-row :gutter="12" style="margin-top:12px;">
 
       <!-- 左：开奖显示 -->
@@ -42,7 +17,7 @@
 
       <!-- 右侧功能区 -->
       <el-col :span="17">
-        <el-card  style="height: 262px!important;" class="card-section" shadow="never">
+        <el-card style="height: 262px!important;" class="card-section" shadow="never">
 
           <!-- 左侧功能按钮 -->
           <el-col :span="10" class="section-center compact-btn-container">
@@ -87,7 +62,8 @@
             </div>
             <div class="right-button-group">
               <div class="button-stack">
-                <el-button type="danger" class="stack-btn" plain style=" margin-bottom:10px;font-weight:700;" @click="stopCalc">
+                <el-button type="danger" class="stack-btn" plain style=" margin-bottom:10px;font-weight:700;"
+                           @click="stopCalc">
                   停止算账
                 </el-button>
 
@@ -148,7 +124,7 @@
     <el-row :gutter="24">
       <el-col :span="24">
         <el-card shadow="never" style="margin-top:12px;">
-          <players-table :players="players"/>
+          <players-table :players="players" @context-action="onRightClickAction"/>
         </el-card>
       </el-col>
     </el-row>
@@ -163,10 +139,16 @@
       <span>今日总盈利：{{ todayProfit }}</span>
       <el-button type="success" size="small" @click="startLottery">开始开奖</el-button>
     </div>
+    <!-- 下注汇总弹框 -->
+    <summary-dialog
+        v-model="showSummary"
+        :text="summaryText"
+    />
+
     <!-- 加载状态提示 -->
     <div v-if="isLoading" class="loading-mask">
       <el-icon class="is-loading">
-        <Loading />
+        <Loading/>
       </el-icon>
       正在刷新开奖数据...
     </div>
@@ -177,10 +159,12 @@
 <script>
 import LotteryDisplay from "./LotteryDisplay.vue";
 import PlayersTable from "./PlayersTable.vue";
-import { Loading } from '@element-plus/icons-vue'
-import { get, post } from '../api/http.js'
+import {Loading} from '@element-plus/icons-vue'
+import {get, post} from '../api/http.js'
+import SummaryDialog from "../components/SummaryDialog.vue";
+
 export default {
-  components: {LotteryDisplay, PlayersTable,Loading},
+  components: {SummaryDialog, LotteryDisplay, PlayersTable, Loading},
 
   data() {
     return {
@@ -204,7 +188,8 @@ export default {
       searchWang: '',
       searchNickname: '',
       searchScore: '',
-
+      showSummary: false,
+      summaryText: '',
       // 布局监听相关
       layoutStatus: '未知',
       debugMode: false,
@@ -214,6 +199,7 @@ export default {
       profit: 64,
       todayProfit: 3335,
       dummy: "10",
+
     };
   },
 
@@ -245,8 +231,21 @@ export default {
     onMenu(name) {
       console.log("点击菜单：", name)
     },
+    onRightClickAction(type, row) {
+      switch (type) {
+        case "delete":
+          // 删除逻辑 …
+          break;
+        case "clear":
+          // 清空下注 …
+          break;
+        case "editWW":
+          // 弹框修改旺旺号 …
+          break;
+      }
+    },
     async handleStartLottery() {
-      if (this.isLoading|| !this.canFetch) {
+      if (this.isLoading || !this.canFetch) {
         this.$message.warning('操作过于频繁，请稍后再试');
         return;
       }
@@ -267,6 +266,16 @@ export default {
       }
 
     },
+    // 点击按钮 → 打开弹框
+    sumBet() {
+      this.summaryText =
+          `3359251期
+            吖猪人数:0   吖猪总汇(不包含托)
+            大:0          小:0          差:小0
+            大单:0        小双:0        差系:双0
+            ...（这里可随便填你的内容）`;
+      this.showSummary = true;
+    },
     parseAndUpdateNumbers(winningStr) {
       if (!winningStr) return;
       try {
@@ -286,7 +295,7 @@ export default {
     },
     handleGetLotteryDisplay() {
       // 确保请求参数传递正确
-      get('/api/lottery/latest',{lotteryType:'fast-lottery'})
+      get('/api/lottery/latest', {lotteryType: 'fast-lottery'})
           .then(res => {
             this.currentRound = res.data.issueNo;
             this.parseAndUpdateNumbers(res.data.winningNumbers);
@@ -303,8 +312,6 @@ export default {
     clearBet() {
     },
     fixOpen() {
-    },
-    sumBet() {
     },
     manualCharge() {
     },
@@ -468,6 +475,7 @@ export default {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
+
   .right-button-group {
     display: flex;
     justify-content: flex-end;
@@ -487,6 +495,7 @@ export default {
     margin: 0 !important; /* 移除默认边距 */
     margin-right: 30px !important;
   }
+
   .right-col {
     /* 不需要设置text-align */
   }

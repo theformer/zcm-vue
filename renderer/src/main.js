@@ -5,21 +5,26 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 
 // 页面
-import LoginWindow from './components/LoginWindow.vue'
-import FrameWindow from './components/FrameWindow.vue'
-import MainView from './components/MainView.vue'   // ← 新增
+import LoginWindow from './views/LoginWindow.vue'
+import FrameWindow from './views/FrameWindow.vue'
+import MainView from './views/MainView.vue'
+import SettingPage from './views/accounting/SettingPage.vue'
 
-const routes = [
-    { path: '/', component: MainView },       // ← 改为 MainView
+// ========= 路由表 =========
+export const routes = [
+    { path: '/', component: MainView },
     { path: '/login', component: LoginWindow },
-    { path: '/frame', component: FrameWindow }
+    { path: '/frame', component: FrameWindow },
+    { path: '/setting', component: SettingPage }
 ]
 
-const router = createRouter({
+// ========= 路由实例 =========
+export const router = createRouter({
     history: createWebHashHistory(),
     routes
 })
 
+// ========= 挂载应用 =========
 createApp(App)
     .use(ElementPlus)
     .use(router)

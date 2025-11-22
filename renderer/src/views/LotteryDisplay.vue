@@ -25,9 +25,6 @@
       </div>
       <el-button size="large" @click="$emit('stop')">手动算账</el-button>
     </div>
-<!--      <el-button size="small" @click="$emit('start')">开始开奖</el-button>-->
-<!--      <el-button size="small" @click="$emit('stop')">停止开奖</el-button>-->
-<!--      <el-button type="primary" size="small" @click="manual">手动开奖</el-button>-->
     </div>
   </div>
 </template>
